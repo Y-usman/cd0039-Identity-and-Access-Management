@@ -28,14 +28,21 @@ db_drop_and_create_all()
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
-@app.route('/drinks', methods=['GET'])
+@app.route('/drinks', methods=['GET'], endpoint='get_drinks')
 def get_drinks():
     drinks = Drink.query.all()
+    try:
 
-    return jsonify({
-        'success': True,
-        'drinks': [drink.short() for drink in drinks]
-    }), 200
+        return jsonify({
+            'success': True,
+            'drinks': [drink.short() for drink in drinks]
+        }), 200
+    
+    except:
+        return jsonify({
+            'success': False,
+            'error': "An error occurred"
+        }), 500
 
 '''
 @TODO implement endpoint
@@ -45,15 +52,21 @@ def get_drinks():
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
-@app.route('/drinks-detail', methods=['GET'])
+@app.route('/drinks-detail', methods=['GET'], endpoint='drinks_detail')
 @requires_auth('get:drinks-detail')
 def get_drink_detail(payload):
     drinks = Drink.query.all()
-
-    return jsonify({
-        'success': True,
-        'drinks': [drink.long() for drink in drinks]
-    }), 200
+    try:
+        return jsonify({
+            'success':
+            True,
+            'drinks': [drink.long() for drink in drinks]
+        }), 200
+    except:
+        return jsonify({
+            'success': False,
+            'error': "An error occurred"
+        }), 500
 
 '''
 @TODO implement endpoint
@@ -64,25 +77,29 @@ def get_drink_detail(payload):
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the newly created drink
         or appropriate status code indicating reason for failure
 '''
-@app.route('/drinks', methods=['POST'])
+@app.route('/drinks', methods=['POST'], endpoint='post_drink')
 @requires_auth('post:drinks')
 def create_drink(payload):
+    drinks = Drink.query.all()
     req = request.get_json()
 
+    data = dict(request.form or request.json or request.data)
+    drink = Drink(title=data.get('title'),
+                  recipe=data.get('recipe') if type(data.get('recipe')) == str
+                  else jsonify(data.get('recipe')))
+    
     try:
-        req_recipe = req['recipe']
-        if isinstance(req_recipe, dict):
-            req_recipe = [req_recipe]
-
-        drink = Drink()
-        drink.title = req['title']
-        drink.recipe = json.dumps(req_recipe)  # convert object to a string
         drink.insert()
+        return jsonify({
+            'success': True,
+            'drinks': [drink.long() for drink in drinks]
+        }), 200
 
-    except BaseException:
-        abort(400)
-
-    return jsonify({'success': True, 'drinks': [drink.long()]})
+    except:
+        return jsonify({
+            'success': False,
+            'error': "An error occurred"
+        }), 500
 
 
 '''
@@ -99,26 +116,29 @@ def create_drink(payload):
 @app.route('/drinks/<int:id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
 def update_drink(payload, id):
-    req = request.get_json()
-    drink = Drink.query.filter(Drink.id == id).one_or_none()
-
-    if not drink:
-        abort(404)
-
     try:
-        req_title = req.get('title')
-        req_recipe = req.get('recipe')
-        if req_title:
-            drink.title = req_title
-
-        if req_recipe:
-            drink.recipe = json.dumps(req['recipe'])
-
-        drink.update()
-    except BaseException:
-        abort(400)
-
-    return jsonify({'success': True, 'drinks': [drink.long()]}), 200
+        data = dict(request.form or request.json or request.data)
+        drink = drink = Drink.query.filter(Drink.id == id).one_or_none()
+        if drink:
+            drink.title = data.get('title') if data.get(
+                'title') else drink.title
+            recipe = data.get('recipe') if data.get('recipe') else drink.recipe
+            drink.recipe = recipe if type(recipe) == str else json.dumps(
+                recipe)
+            drink.update()
+            return json.dumps({'success': True, 'drinks': [drink.long()]}), 200
+        else:
+            return json.dumps({
+                'success':
+                False,
+                'error':
+                'Drink #' + id + ' not found to be edited'
+            }), 404
+    except:
+        return json.dumps({
+            'success': False,
+            'error': "An error occurred"
+        }), 500
 
 '''
 @TODO implement endpoint
@@ -133,17 +153,23 @@ def update_drink(payload, id):
 @app.route('/drinks/<int:id>', methods=['DELETE'])
 @requires_auth('delete:drinks')
 def delete_drink(payload, id):
-    drink = Drink.query.filter(Drink.id == id).one_or_none()
-
-    if not drink:
-        abort(404)
-
     try:
-        drink.delete()
-    except BaseException:
-        abort(400)
-
-    return jsonify({'success': True, 'delete': id}), 200
+        drink = drink = Drink.query.filter(Drink.id == id).one_or_none()
+        if drink:
+            drink.delete()
+            return json.dumps({'success': True, 'drink': id}), 200
+        else:
+            return json.dumps({
+                'success':
+                False,
+                'error':
+                'Drink #' + id + ' not found to be deleted'
+            }), 404
+    except:
+        return json.dumps({
+            'success': False,
+            'error': "An error occurred"
+        }), 500
 
 
 # Error Handling
@@ -177,7 +203,7 @@ def unauthorized(error):
     return jsonify({
         "success": False,
         "error": 401,
-        "message": 'Unathorized'
+        "message": 'Unauthorized'
     }), 401
 
 
