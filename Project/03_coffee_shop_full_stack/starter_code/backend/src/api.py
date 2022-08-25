@@ -30,19 +30,17 @@ db_drop_and_create_all()
 '''
 @app.route('/drinks', methods=['GET'], endpoint='get_drinks')
 def get_drinks():
-    drinks = Drink.query.all()
-    try:
+    all_drinks = Drink.query.all()
 
-        return jsonify({
-            'success': True,
-            'drinks': [drink.short() for drink in drinks]
-        }), 200
-    
-    except:
-        return jsonify({
-            'success': False,
-            'error': "An error occurred"
-        }), 500
+    drinks = [drink.short() for drink in all_drinks]
+
+    if len(drinks) == 0:
+        abort(404)
+        
+    return jsonify({
+        "success": True,
+        "drinks": drinks
+        })
 
 '''
 @TODO implement endpoint
@@ -55,18 +53,17 @@ def get_drinks():
 @app.route('/drinks-detail', methods=['GET'], endpoint='drinks_detail')
 @requires_auth('get:drinks-detail')
 def get_drink_detail(payload):
-    drinks = Drink.query.all()
-    try:
-        return jsonify({
-            'success':
-            True,
-            'drinks': [drink.long() for drink in drinks]
-        }), 200
-    except:
-        return jsonify({
-            'success': False,
-            'error': "An error occurred"
-        }), 500
+    all_drinks = Drink.query.all()
+
+    drinks = [drink.long() for drink in all_drinks]
+
+    if len(drinks) == 0:
+        abort(404)
+        
+    return jsonify({
+        "success": True,
+        "drinks": drinks
+        })
 
 '''
 @TODO implement endpoint
@@ -80,26 +77,22 @@ def get_drink_detail(payload):
 @app.route('/drinks', methods=['POST'], endpoint='post_drink')
 @requires_auth('post:drinks')
 def create_drink(payload):
-    drinks = Drink.query.all()
-    req = request.get_json()
+    body = request.get_json()
 
-    data = dict(request.form or request.json or request.data)
-    drink = Drink(title=data.get('title'),
-                  recipe=data.get('recipe') if type(data.get('recipe')) == str
-                  else jsonify(data.get('recipe')))
-    
+    new_title = body.get('title', None)
+    new_recipe = body.get('recipe', None)
+
     try:
-        drink.insert()
+        new_drink = Drink(title=new_title, recipe=new_recipe)
+        new_drink.insert()
+        drink = [new_drink.long()]
         return jsonify({
-            'success': True,
-            'drinks': [drink.long() for drink in drinks]
-        }), 200
+            "success": True,
+            "drinks": drink
+        })
 
-    except:
-        return jsonify({
-            'success': False,
-            'error': "An error occurred"
-        }), 500
+    except Exception:
+        abort(422)
 
 
 '''
@@ -116,29 +109,24 @@ def create_drink(payload):
 @app.route('/drinks/<int:id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
 def update_drink(payload, id):
+    body = request.get_json()
+    drink = Drink.query.filter(Drink.id == id).one_or_none()
+
+    if drink is None:
+        abort(404)
+
     try:
-        data = dict(request.form or request.json or request.data)
-        drink = drink = Drink.query.filter(Drink.id == id).one_or_none()
-        if drink:
-            drink.title = data.get('title') if data.get(
-                'title') else drink.title
-            recipe = data.get('recipe') if data.get('recipe') else drink.recipe
-            drink.recipe = recipe if type(recipe) == str else json.dumps(
-                recipe)
-            drink.update()
-            return json.dumps({'success': True, 'drinks': [drink.long()]}), 200
-        else:
-            return json.dumps({
-                'success':
-                False,
-                'error':
-                'Drink #' + id + ' not found to be edited'
-            }), 404
-    except:
-        return json.dumps({
-            'success': False,
-            'error': "An error occurred"
-        }), 500
+        drink.title = body['title']
+        drink.recipe = body['recipe']
+
+        drink.update()
+        return jsonify({
+            "success": True,
+            "drinks": [drink.long()]
+        }), 200
+
+    except Exception:
+        abort(422)
 
 '''
 @TODO implement endpoint
@@ -152,24 +140,21 @@ def update_drink(payload, id):
 '''
 @app.route('/drinks/<int:id>', methods=['DELETE'])
 @requires_auth('delete:drinks')
-def delete_drink(payload, id):
+def delete_drink(id, payload):
+    drink = Drink.query.filter(Drink.id == id).one_or_none()
+
+    if drink is None:
+        abort(404)
+
     try:
-        drink = drink = Drink.query.filter(Drink.id == id).one_or_none()
-        if drink:
-            drink.delete()
-            return json.dumps({'success': True, 'drink': id}), 200
-        else:
-            return json.dumps({
-                'success':
-                False,
-                'error':
-                'Drink #' + id + ' not found to be deleted'
-            }), 404
-    except:
-        return json.dumps({
-            'success': False,
-            'error': "An error occurred"
-        }), 500
+        drink.delete()
+        return jsonify({
+            "success": True,
+            "delete": id
+        }),200
+
+    except Exception:
+        abort(422)
 
 
 # Error Handling
