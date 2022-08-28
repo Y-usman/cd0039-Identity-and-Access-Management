@@ -31,25 +31,25 @@ class AuthError(Exception):
     return the token part of the header
 '''
 def get_token_auth_header():
-    auth_header = request.headers.get("Authorization", None)
+    if 'Authorization' not in request.headers:
+        raise AuthError({
+            'code': 'authorization_header_missing',
+            'description': 'Authorization header is expected.'
+        }, 401)
 
-    if not auth_header:
-        raise AuthError({"code": "authorization_header_missing",
-                         "description":
-                         "Authorization header is expected"}, 401)
-
+    auth_header = request.headers['Authorization']
     header_parts = auth_header.split(' ')
 
-    if len(header_parts) != 2 or not header_parts:
+    if len(header_parts) != 2:
         raise AuthError({
             'code': 'invalid_header',
-            'description': 'Authorization header must be in the format'
-            ' Bearer token'}, 401)
-
+            'description': "Authorization header must have the format 'Bearer {{bearer_token}}'."
+        }, 401)
     elif header_parts[0].lower() != 'bearer':
         raise AuthError({
             'code': 'invalid_header',
-            'description': 'Authorization header must start with Bearer'}, 401)
+            'description': "The prefix has to be 'Bearer'."
+        }, 401)
 
     return header_parts[1]
 
@@ -66,7 +66,10 @@ def get_token_auth_header():
 '''
 def check_permissions(permission, payload):
     if 'permissions' not in payload:
-        abort(400)
+        raise AuthError({
+            'code': 'invalid_claims',
+            'description': 'Permissions not included in JWT.'
+        }, 400)
 
     if permission not in payload['permissions']:
         raise AuthError({
