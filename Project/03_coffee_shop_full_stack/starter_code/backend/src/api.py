@@ -1,4 +1,5 @@
 import os
+import sys
 from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
@@ -83,6 +84,7 @@ def create_drink(payload):
         new_drink.insert()
 
     except:
+        print(sys.exc_info())
         abort(422)
 
     return jsonify({
@@ -123,6 +125,7 @@ def update_drink(payload, id):
         })
 
     except:
+        print(sys.exc_info())
         abort(400)
 
 '''
@@ -152,6 +155,7 @@ def delete_drink(payload, id):
         })
 
     except:
+        print(sys.exc_info())
         abort(422)
 
 
