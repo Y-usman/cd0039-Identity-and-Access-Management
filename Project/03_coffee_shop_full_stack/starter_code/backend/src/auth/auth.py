@@ -1,13 +1,15 @@
 import json
+import sys
 from flask import request, _request_ctx_stack, abort
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
 
 
-AUTH0_DOMAIN = 'https://dev-tekxhwwg.us.auth0.com'
+AUTH0_DOMAIN = 'dev-tekxhwwg.us.auth0.com'
 ALGORITHMS = ['RS256']
 API_AUDIENCE = 'coffee-shop-api'
+
 
 ## AuthError Exception
 '''
@@ -99,7 +101,7 @@ def verify_decode_jwt(token):
 
     # Get the data inside the header
     unverified_header = jwt.get_unverified_header(token)
-
+    #print(unverified_header)
     # Auth0 token must have a key id
     if 'kid' not in unverified_header:
         raise AuthError({
@@ -108,8 +110,9 @@ def verify_decode_jwt(token):
         }, 401)
 
     rsa_key = {}
-
+    
     for key in jwks['keys']:
+        #print(key['kid'])
         if key['kid'] == unverified_header['kid']:
             rsa_key = {
                 'kty': key['kty'],
@@ -120,6 +123,8 @@ def verify_decode_jwt(token):
             }
             break
         # verifying token
+    #print(rsa_key)
+
     if rsa_key:
         try:
             # Validate token using the rsa_key
@@ -177,8 +182,8 @@ def requires_auth(permission=''):
             try:
                 payload = verify_decode_jwt(token)
             except:
-                
-                abort(401)
+                print(sys.exc_info())
+                abort(401, 'Authorization error')
 
             check_permissions(permission, payload)
 
