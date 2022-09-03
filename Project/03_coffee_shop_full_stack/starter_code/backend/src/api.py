@@ -166,7 +166,6 @@ def update_drinks(payload, drink_id):
 @requires_auth("delete:drinks")
 def delete_drinks(payload, drink_id):
     drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
-    
     if drink is None:
         abort(404)
             
